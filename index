@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tabla Periódica completa + Calculadora de masa molar</title>
+<style>
+  :root{
+    --size:68px; --gap:6px;
+    --bg:#f5f7fb; --card:#fff; --shadow:0 12px 30px rgba(15,20,40,0.08);
+    --accent:#b9bec0; --accent-600:#0b8fe0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;background:var(--bg);color:#111}
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:#fff;box-shadow:var(--shadow);}
+  h1{font-size:24px;margin:0}
+  #btnCalc{background:var(--accent);color:#fff;border:none;padding:14px 14px;border-radius:8px;cursor:pointer;font-weight:700}
+  #btnCalc:hover{opacity:.95}
+  .container{max-width:1320px;margin:18px auto;padding:0 18px}
+
+  /* GRID PRINCIPAL */
+  .periodic{
+    display:grid;
+    grid-template-columns: repeat(18, var(--size));
+    grid-auto-rows: var(--size);
+    gap: var(--gap);
+    justify-content:center;
+    padding:16px;
+    background:transparent;
+  }
+
+  .el{
+    border-radius:10px; display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;
+    padding:6px;border:1px solid rgba(0,0,0,0.06);cursor:pointer;position:relative;
+    box-shadow:0 6px 18px rgba(10,10,30,0.04); transition:transform .12s ease, box-shadow .12s ease;
+    color:#081125;
+  }
+  .el:hover{transform:translateY(-6px)}
+  .el .num{position:absolute;left:8px;top:6px;font-size:11px;font-weight:800}
+  .el .sym{position:absolute; right:8px; top:6px; font-weight:900; font-size:14px}
+  .el .big{position:absolute; left:8px; bottom:8px; font-size:9px; font-weight:800}
+  .el.highlight{box-shadow:0 10px 30px rgba(14,138,255,0.14); transform:translateY(-4px); border-color:rgba(14,138,255,0.15)}
+
+  /* categorias */
+  .alkali{background:#ffdada}               /* alcalinos */
+  .alkaline{background:#fff2cc}            /* alcalinotérreos */
+  .transition{background:#dceeff}          /* metales de transición */
+  .postmetal{background:#e9e9ff}           /* post transition metals */
+  .metalloid{background:#d7ffd9}           /* metaloides */
+  .nonmetal{background:#fff7d6}            /* no metales */
+  .halogen{background:#fff0c2}             /* halógenos */
+  .noble{background:#e8dbff}               /* gases nobles */
+  .lanth{background:#ffe7f3}               /* lantánidos */
+  .actin{background:#fff0e6}               /* actínidos */
+
+  /* sub tablas inferiores */
+  .sub-title{margin-top:18px;text-align:center;font-weight:800}
+  .sub-table{display:grid;grid-template-columns:repeat(15, calc(var(--size) - 6px)); gap:var(--gap); justify-content:center; margin-top:8px;padding-bottom:20px}
+
+  /* panel info (modal) */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,10,20,0.35);z-index:9999}
+  .card{width:360px;background:var(--card);padding:18px;border-radius:12px;box-shadow:var(--shadow)}
+  .card h2{margin:4px 0;font-size:18px}
+  .card .small{color:#555;margin-bottom:8px}
+  .card .mass{font-weight:800;font-size:20px;margin-top:6px}
+  .close{background:#eee;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;margin-top:12px}
+
+  /* calculadora pantalla */
+  .screen{display:none;padding:20px}
+  .calc-wrap{max-width:560px;margin:18px auto;background:var(--card);padding:18px;border-radius:12px;box-shadow:var(--shadow)}
+  .calc-wrap h3{margin:0 0 8px}
+  .input, .btn{width:100%;padding:10px;border-radius:8px;margin-top:8px;font-size:16px;border:1px solid #e6edf6}
+  .input:focus{outline:none;box-shadow:0 6px 20px rgba(14,138,255,0.12);border-color:var(--accent-600)}
+  .btn{background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:700}
+  .btn.secondary{background:#f3f4f6;color:#1a1d00}
+  .result{background:#f7fbff;padding:12px;border-radius:8px;margin-top:10px;font-weight:700}
+  .detail{margin-top:8px;background:#fff;padding:8px;border-radius:8px;border:1px solid #eee;max-height:260px;overflow:auto}
+
+  /* autocompletado */
+  .ac-wrap{position:relative;margin-top:8px}
+  .ac-list{
+    position:absolute;left:0;right:0;top:calc(100% + 8px);background:#fff;border-radius:10px;box-shadow:0 10px 30px rgba(10,10,30,0.08);
+    max-height:240px;overflow:auto;border:1px solid rgba(0,0,0,0.06);z-index:30;padding:6px;
+  }
+  .ac-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;cursor:pointer}
+  .ac-item:hover,.ac-item.active{background:linear-gradient(90deg, rgba(14,138,255,0.06), rgba(14,138,255,0.02));}
+  .ac-symbol{font-weight:900;margin-right:8px}
+  .ac-name{color:#444;font-size:13px}
+  .ac-empty{padding:10px;text-align:center;color:#888;font-size:14px}
+
+  /* helpers row */
+  .helpers{display:flex;gap:8px;margin-top:10px}
+  .chip{background:#f3f4f6;padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+  .chip:hover{border-color:rgba(0,0,0,0.06)}
+  .chip:active{transform:translateY(1px)}
+
+  /* leyenda */
+  .legend{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;justify-content:center}
+  .key{display:flex;gap:6px;align-items:center;font-size:13px}
+  .sw{width:18px;height:18px;border-radius:4px;border:1px solid rgba(0,0,0,0.06)}
+
+  @media (max-width:980px){
+    .periodic{grid-template-columns: repeat(9, calc(var(--size))); grid-auto-rows: calc(var(--size));}
+    .calc-wrap{max-width:96%}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TABLA PERIODICA </h1>
+  <div>
+    <button id="btnCalc">Calculadora</button>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- PANTALLA TABLA -->
+  <section id="tableScreen">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="display:flex;flex-direction:column">
+      </div>
+      <div class="legend" aria-hidden="true">
+        <div class="key"><span class="sw alkali"></span>Alcalinos</div>
+        <div class="key"><span class="sw alkaline"></span>Alcalinotérreos</div>
+        <div class="key"><span class="sw transition"></span>Metales de transición</div>
+        <div class="key"><span class="sw postmetal"></span>Post-transición</div>
+        <div class="key"><span class="sw metalloid"></span>Metaloides</div>
+        <div class="key"><span class="sw nonmetal"></span>No-metales</div>
+        <div class="key"><span class="sw halogen"></span>Halógenos</div>
+        <div class="key"><span class="sw noble"></span>Gases nobles</div>
+        <div class="key"><span class="sw lanth"></span>Lantánidos</div>
+        <div class="key"><span class="sw actin"></span>Actínidos</div>
+      </div>
+    </div>
+
+    <div class="periodic" id="periodicGrid"></div>
+
+    <div class="sub-title">Lantánidos</div>
+    <div class="sub-table" id="lanthRow"></div>
+
+    <div class="sub-title">Actínidos</div>
+    <div class="sub-table" id="actRow"></div>
+  </section>
+
+  <!-- PANTALLA CALCULADORA -->
+<section id="calcScreen" class="screen" aria-hidden="true" 
+style="padding:20px;display:none">
+
+  <div class="chemcode-wrap" 
+       style="max-width:760px;margin:20px auto;
+              background:#0d0d0f;border-radius:14px;
+              padding:20px;box-shadow:0 16px 40px rgba(0,0,0,0.35);color:#fff;
+              font-family:'Segoe UI',sans-serif;">
+    
+    <!-- Pantalla estilo LCD -->
+    <div id="lcd" 
+         style="background:#495200;color:#000;
+                padding:14px 18px;border-radius:8px;
+                font-size:22px;letter-spacing:1px;
+                font-family:'Consolas','Courier New';margin-bottom:18px;
+                box-shadow:inset 0 0 6px rgba(0,0,0,0.4);min-height:42px">
+      <!-- Texto se inserta dinámicamente -->
+    </div>
+
+    <!-- TECLADO COMPLETO -->
+    <div style="display:flex;gap:18px;">
+
+      <!-- TECLAS QUIMICAS (lado izquierdo) -->
+      <div style="flex:3;display:grid;
+                  grid-template-columns:repeat(8,1fr);
+                  gap:6px;">
+
+        <!-- Se insertan dinámicamente desde JS -->
+        <!-- Cada botón se verá así: 
+        <button class="chemkey" data-sym="H">H</button>
+        -->
+      </div>
+
+      <!-- TECLADO NUMERICO (lado derecho) -->
+      <div style="flex:1;display:grid;
+                  grid-template-columns:repeat(3,1fr);
+                  gap:6px;align-content:start">
+
+        <button class="numkey" data-val="7">7</button>
+        <button class="numkey" data-val="8">8</button>
+        <button class="numkey" data-val="9">9</button>
+
+        <button class="numkey" data-val="4">4</button>
+        <button class="numkey" data-val="5">5</button>
+        <button class="numkey" data-val="6">6</button>
+
+        <button class="numkey" data-val="1">1</button>
+        <button class="numkey" data-val="2">2</button>
+        <button class="numkey" data-val="3">3</button>
+
+        <button class="numkey" data-val="(">(</button>
+        <button class="numkey" data-val="0">0</button>
+        <button class="numkey" data-val=")">)</button>
+
+        <button id="clear" 
+                style="grid-column:span 3;background:#622;color:#fff;
+                       border:none;padding:10px;font-weight:700;
+                       border-radius:6px;cursor:pointer">
+          Borrar
+        </button>
+
+      </div>
+    </div>
+
+    <!-- BOTON CALCULAR -->
+    <button id="doCalc"
+            style="margin-top:18px;width:100%;padding:14px;
+                  background:#acaeaf;border:none;border-radius:10px;
+                  font-size:18px;font-weight:700;color:#fff;cursor:pointer">
+      Calcular masa molar
+    </button>
+
+    <!-- RESULTADO -->
+    <div id="resultBox" 
+         style="display:none;margin-top:12px;background:#495200;color:#000;
+                padding:12px;border-radius:8px;font-size:17px;font-weight:700">
+      M: <span id="resultM"></span> g/mol
+    </div>
+
+    <!-- DETALLE -->
+    <div id="breakdown"
+         style="display:none;margin-top:10px;background:#495200;color:#000;
+                padding:12px;border-radius:8px;max-height:260px;overflow:auto">
+    </div>
+
+    <!-- Botón regresar -->
+    <button id="back"
+            style="margin-top:12px;width:100%;padding:12px;
+                   background:#333;border:none;border-radius:10px;
+                   font-size:16px;font-weight:700;color:#eee;cursor:pointer">
+      Regresar
+    </button>
+
+  </div>
+</section>
+
+</main>
+
+<!-- MODAL INFO -->
+<div class="modal" id="modal">
+  <div class="card" role="dialog" aria-modal="true" aria-labelledby="elTitle">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div id="elSymbol" style="font-size:6px;font-weight:900"></div>
+        <h2 id="elTitle"></h2>
+      </div>
+      <div style="text-align:right">
+        <div id="elNum" class="small" style="color:#666"></div>
+        <div id="elMass" class="mass"></div>
+      </div>
+    </div>
+    <div style="text-align:right">
+      <button class="close" id="closeModal">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* -------------------------------------------------------
+   DATOS: símbolo => {num, name, mass, category}
+   Masas expresadas en u (g·mol⁻¹), valores representativos.
+   (Se mantiene la lista original)
+--------------------------------------------------------*/
+const ELEMENTS = {
+ H:{num:1,name:"Hidrogeno",mass:1.008,cat:"nonmetal"},
+ He:{num:2,name:"Helio",mass:4.0026,cat:"noble"},
+ Li:{num:3,name:"Litio",mass:6.94,cat:"alkali"},
+ Be:{num:4,name:"Berilio",mass:9.0122,cat:"alkaline"},
+ B:{num:5,name:"Boro",mass:10.81,cat:"metalloid"},
+ C:{num:6,name:"Carbono",mass:12.011,cat:"nonmetal"},
+ N:{num:7,name:"Nitrógeno",mass:14.007,cat:"nonmetal"},
+ O:{num:8,name:"Oxígeno",mass:15.999,cat:"nonmetal"},
+ F:{num:9,name:"Flúor",mass:18.998,cat:"halogen"},
+ Ne:{num:10,name:"Neón",mass:20.180,cat:"noble"},
+
+ Na:{num:11,name:"Sodio",mass:22.990,cat:"alkali"},
+ Mg:{num:12,name:"Magnesio",mass:24.305,cat:"alkaline"},
+ Al:{num:13,name:"Aluminio",mass:26.982,cat:"postmetal"},
+ Si:{num:14,name:"Silicio",mass:28.085,cat:"metalloid"},
+ P:{num:15,name:"Fósforo",mass:30.974,cat:"nonmetal"},
+ S:{num:16,name:"Azufre",mass:32.06,cat:"nonmetal"},
+ Cl:{num:17,name:"Cloro",mass:35.45,cat:"halogen"},
+ Ar:{num:18,name:"Argón",mass:39.948,cat:"noble"},
+
+ K:{num:19,name:"Potasio",mass:39.098,cat:"alkali"},
+ Ca:{num:20,name:"Calcio",mass:40.078,cat:"alkaline"},
+ Sc:{num:21,name:"Escandio",mass:44.956,cat:"transition"},
+ Ti:{num:22,name:"Titanio",mass:47.867,cat:"transition"},
+ V:{num:23,name:"Vanadio",mass:50.942,cat:"transition"},
+ Cr:{num:24,name:"Cromo",mass:51.996,cat:"transition"},
+ Mn:{num:25,name:"Manganeso",mass:54.938,cat:"transition"},
+ Fe:{num:26,name:"Hierro",mass:55.845,cat:"transition"},
+ Co:{num:27,name:"Cobalto",mass:58.933,cat:"transition"},
+ Ni:{num:28,name:"Níquel",mass:58.693,cat:"transition"},
+ Cu:{num:29,name:"Cobre",mass:63.546,cat:"transition"},
+ Zn:{num:30,name:"Zinc",mass:65.38,cat:"transition"},
+
+ Ga:{num:31,name:"Galio",mass:69.723,cat:"postmetal"},
+ Ge:{num:32,name:"Germanio",mass:72.630,cat:"metalloid"},
+ As:{num:33,name:"Arsénico",mass:74.922,cat:"metalloid"},
+ Se:{num:34,name:"Selenio",mass:78.971,cat:"nonmetal"},
+ Br:{num:35,name:"Bromo",mass:79.904,cat:"halogen"},
+ Kr:{num:36,name:"Kriptón",mass:83.798,cat:"noble"},
+
+ Rb:{num:37,name:"Rubidio",mass:85.468,cat:"alkali"},
+ Sr:{num:38,name:"Estroncio",mass:87.62,cat:"alkaline"},
+ Y:{num:39,name:"Itrio",mass:88.906,cat:"transition"},
+ Zr:{num:40,name:"Circonio",mass:91.224,cat:"transition"},
+ Nb:{num:41,name:"Niobio",mass:92.906,cat:"transition"},
+ Mo:{num:42,name:"Molibdeno",mass:95.95,cat:"transition"},
+ Tc:{num:43,name:"Tecnecio",mass:98,cat:"transition"},
+ Ru:{num:44,name:"Rutenio",mass:101.07,cat:"transition"},
+ Rh:{num:45,name:"Rodio",mass:102.91,cat:"transition"},
+ Pd:{num:46,name:"Paladio",mass:106.42,cat:"transition"},
+ Ag:{num:47,name:"Plata",mass:107.87,cat:"transition"},
+ Cd:{num:48,name:"Cadmio",mass:112.41,cat:"transition"},
+
+ In:{num:49,name:"Indio",mass:114.82,cat:"postmetal"},
+ Sn:{num:50,name:"Estaño",mass:118.71,cat:"postmetal"},
+ Sb:{num:51,name:"Antimonio",mass:121.76,cat:"metalloid"},
+ Te:{num:52,name:"Telurio",mass:127.60,cat:"metalloid"},
+ I:{num:53,name:"Yodo",mass:126.90,cat:"halogen"},
+ Xe:{num:54,name:"Xenón",mass:131.29,cat:"noble"},
+
+ Cs:{num:55,name:"Cesio",mass:132.91,cat:"alkali"},
+ Ba:{num:56,name:"Bario",mass:137.33,cat:"alkaline"},
+
+ /* Lantánido (marcador en tabla principal: La) */
+ La:{num:57,name:"Lantano",mass:138.91,cat:"lanth"},
+ Ce:{num:58,name:"Cerio",mass:140.12,cat:"lanth"},
+ Pr:{num:59,name:"Praseodimio",mass:140.91,cat:"lanth"},
+ Nd:{num:60,name:"Neodimio",mass:144.24,cat:"lanth"},
+ Pm:{num:61,name:"Prometio",mass:145,cat:"lanth"},
+ Sm:{num:62,name:"Samario",mass:150.36,cat:"lanth"},
+ Eu:{num:63,name:"Europio",mass:151.96,cat:"lanth"},
+ Gd:{num:64,name:"Gadolinio",mass:157.25,cat:"lanth"},
+ Tb:{num:65,name:"Terbio",mass:158.93,cat:"lanth"},
+ Dy:{num:66,name:"Disprosio",mass:162.50,cat:"lanth"},
+ Ho:{num:67,name:"Holmio",mass:164.93,cat:"lanth"},
+ Er:{num:68,name:"Erbio",mass:167.26,cat:"lanth"},
+ Tm:{num:69,name:"Tulio",mass:168.93,cat:"lanth"},
+ Yb:{num:70,name:"Iterbio",mass:173.04,cat:"lanth"},
+ Lu:{num:71,name:"Lutecio",mass:174.97,cat:"lanth"},
+
+ Hf:{num:72,name:"Hafnio",mass:178.49,cat:"transition"},
+ Ta:{num:73,name:"Tántalo",mass:180.95,cat:"transition"},
+ W:{num:74,name:"Wolframio",mass:183.84,cat:"transition"},
+ Re:{num:75,name:"Renio",mass:186.21,cat:"transition"},
+ Os:{num:76,name:"Osmio",mass:190.23,cat:"transition"},
+ Ir:{num:77,name:"Iridio",mass:192.22,cat:"transition"},
+ Pt:{num:78,name:"Platino",mass:195.08,cat:"transition"},
+ Au:{num:79,name:"Oro",mass:196.97,cat:"transition"},
+ Hg:{num:80,name:"Mercurio",mass:200.59,cat:"transition"},
+
+ Tl:{num:81,name:"Talio",mass:204.38,cat:"postmetal"},
+ Pb:{num:82,name:"Plomo",mass:207.2,cat:"postmetal"},
+ Bi:{num:83,name:"Bismuto",mass:208.98,cat:"postmetal"},
+ Po:{num:84,name:"Polonio",mass:209,cat:"metalloid"},
+ At:{num:85,name:"Astato",mass:210,cat:"halogen"},
+ Rn:{num:86,name:"Radón",mass:222,cat:"noble"},
+
+ Fr:{num:87,name:"Francio",mass:223,cat:"alkali"},
+ Ra:{num:88,name:"Radio",mass:226,cat:"alkaline"},
+
+ /* Actínidos */
+ Ac:{num:89,name:"Actinio",mass:227,cat:"actin"},
+ Th:{num:90,name:"Torio",mass:232.04,cat:"actin"},
+ Pa:{num:91,name:"Protactinio",mass:231.04,cat:"actin"},
+ U:{num:92,name:"Uranio",mass:238.03,cat:"actin"},
+ Np:{num:93,name:"Neptunio",mass:237,cat:"actin"},
+ Pu:{num:94,name:"Plutonio",mass:244,cat:"actin"},
+ Am:{num:95,name:"Americio",mass:243,cat:"actin"},
+ Cm:{num:96,name:"Curio",mass:247,cat:"actin"},
+ Bk:{num:97,name:"Berkelio",mass:247,cat:"actin"},
+ Cf:{num:98,name:"Californio",mass:251,cat:"actin"},
+ Es:{num:99,name:"Einstenio",mass:252,cat:"actin"},
+ Fm:{num:100,name:"Fermio",mass:257,cat:"actin"},
+ Md:{num:101,name:"Mendelevio",mass:258,cat:"actin"},
+ No:{num:102,name:"Nobelio",mass:259,cat:"actin"},
+ Lr:{num:103,name:"Lawrencio",mass:262,cat:"actin"},
+
+ /* transactinidos / superheavy */
+ Rf:{num:104,name:"Rutherfordio",mass:267,cat:"transition"},
+ Db:{num:105,name:"Dubnio",mass:268,cat:"transition"},
+ Sg:{num:106,name:"Seaborgio",mass:269,cat:"transition"},
+ Bh:{num:107,name:"Bohrio",mass:270,cat:"transition"},
+ Hs:{num:108,name:"Hassio",mass:277,cat:"transition"},
+ Mt:{num:109,name:"Meitnerio",mass:278,cat:"transition"},
+ Ds:{num:110,name:"Darmstadtio",mass:281,cat:"transition"},
+ Rg:{num:111,name:"Roentgenio",mass:282,cat:"transition"},
+ Cn:{num:112,name:"Copernicio",mass:285,cat:"transition"},
+ Nh:{num:113,name:"Nihonio",mass:286,cat:"postmetal"},
+ Fl:{num:114,name:"Flerovio",mass:289,cat:"postmetal"},
+ Mc:{num:115,name:"Moscovio",mass:290,cat:"postmetal"},
+ Lv:{num:116,name:"Livermorio",mass:293,cat:"postmetal"},
+ Ts:{num:117,name:"Tenesino",mass:294,cat:"halogen"},
+ Og:{num:118,name:"Oganesón",mass:294,cat:"noble"}
+};
+
+/* -------------------------------------------------------
+   POSITIONS & rendering (igual que antes)
+--------------------------------------------------------*/
+const POSITIONS = {
+  H:[1,1], He:[18,1],
+  Li:[1,2], Be:[2,2], B:[13,2], C:[14,2], N:[15,2], O:[16,2], F:[17,2], Ne:[18,2],
+  Na:[1,3], Mg:[2,3], Al:[13,3], Si:[14,3], P:[15,3], S:[16,3], Cl:[17,3], Ar:[18,3],
+  K:[1,4], Ca:[2,4], Sc:[3,4], Ti:[4,4], V:[5,4], Cr:[6,4], Mn:[7,4], Fe:[8,4], Co:[9,4], Ni:[10,4], Cu:[11,4], Zn:[12,4], Ga:[13,4], Ge:[14,4], As:[15,4], Se:[16,4], Br:[17,4], Kr:[18,4],
+  Rb:[1,5], Sr:[2,5], Y:[3,5], Zr:[4,5], Nb:[5,5], Mo:[6,5], Tc:[7,5], Ru:[8,5], Rh:[9,5], Pd:[10,5], Ag:[11,5], Cd:[12,5], In:[13,5], Sn:[14,5], Sb:[15,5], Te:[16,5], I:[17,5], Xe:[18,5],
+  Cs:[1,6], Ba:[2,6], La:[3,6], Hf:[4,6], Ta:[5,6], W:[6,6], Re:[7,6], Os:[8,6], Ir:[9,6], Pt:[10,6], Au:[11,6], Hg:[12,6], Tl:[13,6], Pb:[14,6], Bi:[15,6], Po:[16,6], At:[17,6], Rn:[18,6],
+  Fr:[1,7], Ra:[2,7], Ac:[3,7], Rf:[4,7], Db:[5,7], Sg:[6,7], Bh:[7,7], Hs:[8,7], Mt:[9,7], Ds:[10,7], Rg:[11,7], Cn:[12,7], Nh:[13,7], Fl:[14,7], Mc:[15,7], Lv:[16,7], Ts:[17,7], Og:[18,7]
+};
+
+const LANTH_ORDER = ["Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu"];
+const ACT_ORDER = ["Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr"];
+
+/* render grid */
+const grid = document.getElementById("periodicGrid");
+function makeCell(sym, col, row){
+  const data = ELEMENTS[sym];
+  const el = document.createElement("div");
+  el.className = "el " + mapCatToClass(data.cat);
+  el.style.gridColumn = col;
+  el.style.gridRow = row;
+  el.setAttribute("data-symbol", sym);
+  el.setAttribute("tabindex", 0);
+  el.innerHTML = `<div class="num">${data.num}</div><div class="sym">${sym}</div><div class="big">${data.name}</div>`;
+  el.addEventListener("click", ()=> openModal(sym));
+  el.addEventListener("keydown", (e)=> { if(e.key==='Enter') openModal(sym); });
+  grid.appendChild(el);
+}
+
+for (const sym in POSITIONS){
+  const [col,row] = POSITIONS[sym];
+  makeCell(sym,col,row);
+}
+
+if(!document.querySelector('[data-symbol="La"]')){
+  makeCell("La",3,6);
+}
+
+/* sub tables */
+const lanthRow = document.getElementById("lanthRow");
+const actRow = document.getElementById("actRow");
+
+LANTH_ORDER.forEach(sym=>{
+  const d = ELEMENTS[sym];
+  const div = document.createElement("div");
+  div.className = "el " + mapCatToClass(d.cat);
+  div.style.width = "calc(var(--size) - 6px)";
+  div.style.height = "calc(var(--size) - 6px)";
+  div.style.display = "flex";
+  div.style.alignItems = "center";
+  div.style.justifyContent = "space-between";
+  div.style.padding = "6px";
+  div.setAttribute("data-symbol", sym);
+  div.innerHTML = `<div style="font-weight:800">${sym}</div><div style="font-size:12px">${d.num}</div>`;
+  div.addEventListener("click", ()=> openModal(sym));
+  lanthRow.appendChild(div);
+});
+
+ACT_ORDER.forEach(sym=>{
+  const d = ELEMENTS[sym];
+  const div = document.createElement("div");
+  div.className = "el " + mapCatToClass(d.cat);
+  div.style.width = "calc(var(--size) - 6px)";
+  div.style.height = "calc(var(--size) - 6px)";
+  div.style.display = "flex";
+  div.style.alignItems = "center";
+  div.style.justifyContent = "space-between";
+  div.style.padding = "6px";
+  div.setAttribute("data-symbol", sym);
+  div.innerHTML = `<div style="font-weight:800">${sym}</div><div style="font-size:12px">${d.num}</div>`;
+  div.addEventListener("click", ()=> openModal(sym));
+  actRow.appendChild(div);
+});
+
+function mapCatToClass(cat){
+  switch(cat){
+    case "alkali": return "alkali";
+    case "alkaline": return "alkaline";
+    case "transition": return "transition";
+    case "postmetal": return "postmetal";
+    case "metalloid": return "metalloid";
+    case "nonmetal": return "nonmetal";
+    case "halogen": return "halogen";
+    case "noble": return "noble";
+    case "lanth": return "lanth";
+    case "actin": return "actin";
+    default: return "";
+  }
+}
+
+/* modal */
+const modal = document.getElementById("modal");
+const elSymbol = document.getElementById("elSymbol");
+const elTitle = document.getElementById("elTitle");
+const elNum = document.getElementById("elNum");
+const elMass = document.getElementById("elMass");
+document.getElementById("closeModal").addEventListener("click", ()=> modal.style.display="none");
+modal.addEventListener("click",(e)=>{ if(e.target===modal) modal.style.display="none"; });
+
+function openModal(sym){
+  const d = ELEMENTS[sym];
+  elSymbol.textContent = sym;
+  elTitle.textContent = d.name;
+  elNum.textContent = "Número atómico: " + d.num;
+  elMass.textContent = "Masa atómica: " + d.mass + " u";
+  modal.style.display = "flex";
+}
+
+/* -----------------------------
+   GENERAR TECLADO QUÍMICO
+------------------------------*/
+const chemGrid = document.querySelector(".chemcode-wrap div[style*='grid-template-columns:repeat(8']");
+const lcd = document.getElementById("lcd");
+
+/* Lista optimizada de elementos realmente usados */
+const COMMON_KEYS = [
+ "H","C","N","O","P","S",
+ "F","Cl","Br","I",
+ "Li","Na","K",
+ "Mg","Ca","Ba",
+ "Fe","Cu","Zn","Al","Sn","Ag","Pb","Ni","Cr","Mn"
+];
+
+COMMON_KEYS.forEach(sym=>{
+  let b = document.createElement("button");
+  b.className = "chemkey";
+  b.textContent = sym;
+  b.dataset.sym = sym;
+  b.style.cssText = `
+    padding:8px;background:#1d1f25;border:none;border-radius:6px;
+    color:#eee;font-weight:700;cursor:pointer;
+    box-shadow:inset 0 0 3px rgba(255,255,255,0.08);
+  `;
+  b.onclick = ()=> insertLCD(sym);
+  chemGrid.appendChild(b);
+});
+
+
+
+/* -----------------------------
+   TECLADO NUMÉRICO
+------------------------------*/
+document.querySelectorAll(".numkey").forEach(btn=>{
+  btn.style.cssText = `
+    padding:10px;background:#222;border:none;border-radius:6px;
+    color:#fff;font-size:17px;font-weight:700;cursor:pointer;
+  `;
+  btn.onclick = ()=> insertLCD(btn.dataset.val);
+});
+
+document.getElementById("clear").onclick = ()=>{
+  lcd.textContent = "";
+};
+
+/* -----------------------------
+   INSERTAR TEXTO EN PANTALLA
+------------------------------*/
+function insertLCD(txt){
+  lcd.textContent += txt;
+}
+
+/* -----------------------------
+   CÁLCULO DE MASA
+------------------------------*/
+document.getElementById("doCalc").onclick = ()=>{
+  let formula = lcd.textContent.trim();
+  if(!formula){ alert("Ingresa una fórmula"); return; }
+
+  try{
+    const counts = parseFormula(formula);
+    let total = 0;
+
+    let html =
+      `<table style="width:100%;border-collapse:collapse">
+        <tr><th>Elemento</th><th>Cantidad</th><th>Masa</th></tr>`;
+
+    for(const sym in counts){
+      let qty = counts[sym];
+      let mass = ELEMENTS[sym].mass * qty;
+      total += mass;
+
+      html += `<tr>
+        <td>${sym}</td>
+        <td>${qty}</td>
+        <td>${mass.toFixed(4)}</td>
+      </tr>`;
+    }
+
+    html += "</table>";
+
+    document.getElementById("resultBox").style.display="block";
+    document.getElementById("resultM").textContent = total.toFixed(4);
+
+    const bd = document.getElementById("breakdown");
+    bd.style.display = "block";
+    bd.innerHTML = html;
+
+  }catch(e){
+    alert("Error en la fórmula: " + e.message);
+  }
+};
+
+/* -----------------------------
+   REGRESAR A LA TABLA
+------------------------------*/
+document.getElementById("back").onclick = ()=>{
+  calcScreen.style.display="none";
+  tableScreen.style.display="block";
+};
+
+
+/* -------------------------------------------------------
+   CALCULADORA: Autocompletado estilo A (símbolo + nombre)
+--------------------------------------------------------*/
+const btnCalc = document.getElementById("btnCalc");
+const tableScreen = document.getElementById("tableScreen");
+const calcScreen = document.getElementById("calcScreen");
+const backBtn = document.getElementById("back");
+const doCalc = document.getElementById("doCalc");
+const formulaInput = document.getElementById("formula");
+const totalBox = document.getElementById("totalBox");
+const totalMass = document.getElementById("totalMass");
+const breakdown = document.getElementById("breakdown");
+
+btnCalc.addEventListener("click", ()=> {
+  tableScreen.style.display = "none";
+  calcScreen.style.display = "block";
+  calcScreen.setAttribute("aria-hidden","false");
+  formulaInput.focus();
+});
+backBtn.addEventListener("click", ()=> {
+  calcScreen.style.display = "none";
+  tableScreen.style.display = "block";
+  calcScreen.setAttribute("aria-hidden","true");
+});
+
+/* Autocomplete list management */
+const acList = document.getElementById("acList");
+let acVisible = false;
+let acItems = []; // current list of symbols (ordered)
+let acActiveIndex = -1;
+
+function symbolEntries(){
+  // create array of {sym,name} sorted by symbol
+  return Object.keys(ELEMENTS).map(s=>({sym:s,name:ELEMENTS[s].name})).sort((a,b)=> a.sym.localeCompare(b.sym));
+}
+const SYMBOLS = symbolEntries();
+
+function showSuggestions(prefix){
+  prefix = (prefix||"").trim();
+  clearHighlights();
+  if(!prefix){
+    hideSuggestions();
+    return;
+  }
+  // Only consider 1-2 letter prefixes (real element symbols are 1-2 letters; but user might type longer; we'll match startsWith)
+  const p = prefix[0].toUpperCase() + (prefix[1] ? prefix.slice(1) : '');
+  // Filter: startsWith case-insensitive
+  const matches = SYMBOLS.filter(e => e.sym.toUpperCase().startsWith(prefix.toUpperCase()) || e.name.toLowerCase().startsWith(prefix.toLowerCase()));
+  acItems = matches.slice(0,40); // limit
+  renderAcList();
+  highlightMatchingInGrid(prefix);
+}
+
+function renderAcList(){
+  acList.innerHTML = "";
+  if(!acItems.length){
+    const div = document.createElement("div");
+    div.className = "ac-empty";
+    div.textContent = "No hay elementos con ese inicio";
+    acList.appendChild(div);
+    acList.style.display = "block";
+    acVisible = true;
+    acActiveIndex = -1;
+    return;
+  }
+  acItems.forEach((it, idx)=>{
+    const row = document.createElement("div");
+    row.className = "ac-item";
+    row.setAttribute("role","option");
+    row.setAttribute("data-index", idx);
+    row.innerHTML = `<div><span class="ac-symbol">${it.sym}</span><span class="ac-name">${it.name}</span></div>`;
+    row.addEventListener("click", ()=> selectAcItem(idx));
+    row.addEventListener("mouseover", ()=> setActiveIndex(idx));
+    acList.appendChild(row);
+  });
+  acList.style.display = "block";
+  acVisible = true;
+  acActiveIndex = -1;
+}
+
+function hideSuggestions(){
+  acList.style.display = "none";
+  acVisible = false;
+  acItems = [];
+  acActiveIndex = -1;
+  clearHighlights();
+}
+
+function setActiveIndex(i){
+  const prev = acList.querySelector(".ac-item.active");
+  if(prev) prev.classList.remove("active");
+  acActiveIndex = i;
+  const el = acList.querySelector(`.ac-item[data-index="${i}"]`);
+  if(el) el.classList.add("active");
+}
+
+function selectAcItem(idx){
+  const item = acItems[idx];
+  if(!item) return;
+  insertAtCursor(formulaInput, item.sym);
+  hideSuggestions();
+  formulaInput.focus();
+  // After insert, re-trigger suggestions for continued typing
+  updateSuggestionsDebounced();
+}
+
+/* insert symbol into input at cursor position */
+function insertAtCursor(input, text){
+  const start = input.selectionStart || 0;
+  const end = input.selectionEnd || 0;
+  const val = input.value;
+  input.value = val.slice(0,start) + text + val.slice(end);
+  const caret = start + text.length;
+  input.setSelectionRange(caret, caret);
+  // trigger input event manually (for suggestions)
+  input.dispatchEvent(new Event('input', {bubbles:true}));
+}
+
+/* highlight elements in grid whose symbol starts with prefix (case-insensitive) */
+function highlightMatchingInGrid(prefix){
+  prefix = prefix || "";
+  prefix = prefix.trim();
+  if(!prefix) return;
+  const up = prefix.toUpperCase();
+  document.querySelectorAll('.el').forEach(el=>{
+    const s = el.getAttribute('data-symbol') || "";
+    if(s.toUpperCase().startsWith(up)){
+      el.classList.add('highlight');
+    } else {
+      el.classList.remove('highlight');
+    }
+  });
+}
+function clearHighlights(){
+  document.querySelectorAll('.el.highlight').forEach(el=>el.classList.remove('highlight'));
+}
+
+/* keyboard handling for input (navigate suggestions) */
+formulaInput.addEventListener('keydown', (e)=>{
+  if(acVisible){
+    if(e.key === 'ArrowDown'){
+      e.preventDefault();
+      const next = (acActiveIndex + 1) < acItems.length ? acActiveIndex + 1 : 0;
+      setActiveIndex(next);
+      scrollActiveIntoView();
+    } else if(e.key === 'ArrowUp'){
+      e.preventDefault();
+      const prev = (acActiveIndex - 1) >= 0 ? acActiveIndex - 1 : (acItems.length-1);
+      setActiveIndex(prev);
+      scrollActiveIntoView();
+    } else if(e.key === 'Enter'){
+      if(acActiveIndex >= 0){
+        e.preventDefault();
+        selectAcItem(acActiveIndex);
+      } // otherwise allow default (submit) to trigger calc
+    } else if(e.key === 'Escape'){
+      hideSuggestions();
+    }
+  }
+});
+
+function scrollActiveIntoView(){
+  const active = acList.querySelector('.ac-item.active');
+  if(active) active.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+/* handle input events to show suggestions; we debounce small delay */
+let sugTimer = null;
+function updateSuggestionsDebounced(){
+  if(sugTimer) clearTimeout(sugTimer);
+  sugTimer = setTimeout(()=> {
+    const val = getWordBeforeCursor();
+    if(val && /[A-Za-z\u00C0-\u017F]{1,3}$/.test(val)){ // letters prefix
+      showSuggestions(val);
+    } else {
+      hideSuggestions();
+    }
+  }, 120);
+}
+formulaInput.addEventListener('input', updateSuggestionsDebounced);
+
+/* helper: get the current "word" before cursor (non-digit, letters and parentheses) */
+function getWordBeforeCursor(){
+  const pos = formulaInput.selectionStart || 0;
+  const val = formulaInput.value || "";
+  // scan backwards until hit a character not letter (A-Z or a-z) — we only want the symbol fragment
+  let i = pos-1;
+  let word = "";
+  while(i>=0){
+    const ch = val[i];
+    if(/[A-Za-z]/.test(ch)){
+      word = ch + word;
+      i--;
+    } else break;
+  }
+  return word;
+}
+
+/* helpers buttons */
+document.getElementById('btnOpenParen').addEventListener('click', ()=> insertAtCursor(formulaInput,'('));
+document.getElementById('btnCloseParen').addEventListener('click', ()=> insertAtCursor(formulaInput,')'));
+document.getElementById('btnClear').addEventListener('click', ()=> { formulaInput.value=''; formulaInput.focus(); hideSuggestions(); clearHighlights(); updateSuggestionsDebounced(); });
+
+/* click outside should hide suggestions */
+document.addEventListener('click', (e)=> {
+  if(!document.querySelector('.ac-wrap')?.contains(e.target)) hideSuggestions();
+});
+
+/* parse químico (igual que antes) */
+function parseFormula(formula){
+  formula = formula.replace(/\s+/g,'');
+  let i=0;
+  function parseSegment(){
+    const counts = {};
+    while(i < formula.length){
+      if(formula[i] === '(' || formula[i] === '[' || formula[i] === '{'){
+        const open = formula[i];
+        const close = (open==='(')?')':(open==='[')?']':'}';
+        i++; // skip open
+        const inner = parseSegment();
+        if(i>=formula.length || formula[i]!==close) throw new Error("Paréntesis no balanceados");
+        i++; // skip close
+        let numStr=''; while(i<formula.length && /\d/.test(formula[i])){ numStr+=formula[i]; i++; }
+        const mul = numStr?parseInt(numStr,10):1;
+        for(const k in inner) counts[k] = (counts[k]||0) + inner[k]*mul;
+      } else if(formula[i]===')' || formula[i]===']' || formula[i]==='}'){
+        break;
+      } else {
+        if(/[A-Z]/.test(formula[i])){
+          let sym = formula[i++];
+          if(i<formula.length && /[a-z]/.test(formula[i])) sym += formula[i++];
+          let numStr=''; while(i<formula.length && /\d/.test(formula[i])){ numStr+=formula[i]; i++; }
+          const qty = numStr?parseInt(numStr,10):1;
+          counts[sym] = (counts[sym]||0) + qty;
+        } else {
+          throw new Error("Símbolo inválido en fórmula cerca de: " + formula.slice(i));
+        }
+      }
+    }
+    return counts;
+  }
+  i = 0;
+  const result = parseSegment();
+  if(i !== formula.length) throw new Error("Error parseando fórmula");
+  return result;
+}
+
+/* calcular */
+doCalc.addEventListener("click", ()=> {
+  const formula = formulaInput.value.trim();
+  if(!formula){ alert("Introduce una fórmula (ej: H2O)"); return; }
+  try{
+    const counts = parseFormula(formula);
+    let total = 0;
+    let html = '<table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left"><th>Elemento</th><th>Cant.</th><th style="text-align:right">Masa (u)</th></tr></thead><tbody>';
+    for(const sym in counts){
+      if(!ELEMENTS[sym]){
+        html += `<tr><td colspan="3" style="color:#b00">Símbolo desconocido: ${sym}</td></tr>`;
+        continue;
+      }
+      const qty = counts[sym];
+      const mass = ELEMENTS[sym].mass * qty;
+      total += mass;
+      html += `<tr><td>${sym} — ${ELEMENTS[sym].name}</td><td>${qty}</td><td style="text-align:right">${mass.toFixed(4)}</td></tr>`;
+    }
+    html += "</tbody></table>";
+    totalMass.textContent = total.toFixed(4);
+    totalBox.style.display = "block";
+    breakdown.style.display = "block";
+    breakdown.innerHTML = html;
+    // highlight all elements present in formula briefly
+    highlightPresentElements(counts);
+  } catch(err){
+    alert("Error al parsear fórmula: " + err.message);
+  }
+});
+
+/* brief highlight for present elements */
+function highlightPresentElements(counts){
+  clearHighlights();
+  for(const s in counts){
+    const el = document.querySelector(`[data-symbol="${s}"]`);
+    if(el) el.classList.add('highlight');
+  }
+  // remove highlight after a while
+  setTimeout(()=> clearHighlights(), 2200);
+}
+
+/* accesibilidad: cerrar modal con ESC */
+document.addEventListener("keydown",(e)=>{ if(e.key === "Escape"){ modal.style.display="none"; hideSuggestions(); clearHighlights(); } });
+
+/* inicial focus aria */
+document.getElementById("btnCalc").setAttribute("aria-label","Abrir calculadora de masa molar");
+
+/* small utility: if user clicks element in table while in calc screen, insert that symbol into input */
+document.addEventListener('click', (e)=>{
+  const el = e.target.closest('.el[data-symbol]');
+  if(!el) return;
+  if(calcScreen.style.display === 'block'){
+    const sym = el.getAttribute('data-symbol');
+    insertAtCursor(formulaInput, sym);
+    formulaInput.focus();
+  }
+});
+</script>
+</body>
+</html>
